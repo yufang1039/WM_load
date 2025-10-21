@@ -1,0 +1,9 @@
+modify the code to be block design. There are three block types: three 3-syllable words, three 4-syllable words, four 3-syllable words, and three 3-syllable words. each block as X,Y,Z blocks. Randomize all blocks for all three designs before experiment and output an block order file before starting.
+
+For each block. For example, block 3 in three_3_syllable_words design, audio files are in /Users/yufang/WM_load/chinese_audio_output/three_3_syllable_words/block_1. There are trial_1 to trial_41 folder. In each folder, find words' audio in /Users/yufang/WM_load/chinese_audio_output/three_3_syllable_words/block_1/trial_1/words. Play them in order, eg, /Users/yufang/WM_load/chinese_audio_output/three_3_syllable_words/block_1/trial_1/words/word1_syllable_1_蒸馏水_蒸.mp3 followed by /Users/yufang/WM_load/chinese_audio_output/three_3_syllable_words/block_1/trial_1/words/word1_syllable_2_蒸馏水_馏.mp3. For cue, find it in cue folder, eg, /Users/yufang/WM_load/chinese_audio_output/three_3_syllable_words/block_1/trial_1/cue/word1_syllable_3_蒸馏水_水.mp3
+
+During th report stage, participant should report both global rank and local rank. Duration between these two are 200ms., make it hyperparameters. The total number of global ranks and local ranks change by block type. Eg, for three 4-syllable word, global rank is 1, 2, 3, local rank is 1, 2, 3, 4. The first trial in each block is a practice trial.
+
+Also, add funciton to press p to pause experiment anytime, press p again to unpause.
+
+Also, add send EEG triger when cue start playing, neural impluse is given, report options are given and when participant report ranks (both local and global). So that is 6 triggers per trial. 
