@@ -89,7 +89,7 @@ class AuditorySequenceExperiment:
         
         if self.params['use_eeg_triggers']:
             try:
-                self.port = parallel.ParallelPort(address=0x0378)  # Adjust address as needed
+                self.port = parallel.ParallelPort(address=0x7FF7=8)  # Adjust address as needed
                 self.eeg_enabled = True
                 print("EEG triggers enabled - parallel port initialized.")
             except:
