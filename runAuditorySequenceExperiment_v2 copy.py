@@ -278,7 +278,7 @@ class AuditorySequenceExperiment:
                     audio_filepath = os.path.join(words_path, audio_file)
                     
                     try:
-                        sound_obj = sound.Sound(audio_filepath)
+                        sound_obj = sound.Sound(audio_filepath, sampleRate=48000)
                         syllable_sounds.append(sound_obj)
                         print(f"Loaded: {audio_filepath}")
                     except Exception as e:

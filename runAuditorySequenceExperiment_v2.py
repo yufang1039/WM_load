@@ -21,8 +21,11 @@ class AuditorySequenceExperiment:
         
         # HYPERPARAMETERS - Easily adjustable timing and experimental parameters
         self.params = {
+            # Subject information
+            'subject_id': '',                     # Subject ID (will be set via GUI)
+            
             # EEG settings
-            'use_eeg_triggers': False,            # Set to True to enable EEG triggers, False for local testing
+            'use_eeg_triggers': True,            # Set to True to enable EEG triggers, False for local testing
             
             # Encoding phase timing (seconds)
             'encoding_fixation_duration': 0.6,    # Initial fixation duration
@@ -38,6 +41,7 @@ class AuditorySequenceExperiment:
             # Report phase timing (seconds)
             'report_response_time': 0.5,          # Time for report display
             'inter_report_interval': 0.2,         # Time between global and local rank reports
+            'inter_trial_interval': 1.0,          # Empty screen duration between trials
             
             # Visual parameters
             'fixation_size': 1,                   # Fixation cross size (degrees)
@@ -49,7 +53,8 @@ class AuditorySequenceExperiment:
             'audio_volume': 0.5,                  # Audio volume (0-1)
             
             # File paths
-            'audio_base_path': '/Users/yufang/WM_load/chinese_audio_output',  # Base path for audio files
+            'audio_base_path': 'chinese_audio_output',  # Base path for audio files
+            'data_save_path': 'Data',                   # Base path for saving data
             
             # Block designs
             'block_designs': [
@@ -84,7 +89,7 @@ class AuditorySequenceExperiment:
         
         if self.params['use_eeg_triggers']:
             try:
-                self.port = parallel.ParallelPort(address=0x0378)  # Adjust address as needed
+                self.port = parallel.ParallelPort(address=0x7FF78)  # Adjust address as needed
                 self.eeg_enabled = True
                 print("EEG triggers enabled - parallel port initialized.")
             except:
@@ -125,6 +130,17 @@ class AuditorySequenceExperiment:
         
         if 'escape' in keys:
             core.quit()
+    
+    def get_subject_info(self):
+        """Get subject information via GUI dialog"""
+        exp_info = {'Subject ID': ''}
+        dlg = gui.DlgFromDict(dictionary=exp_info, title='Auditory Sequence Experiment')
+        
+        if dlg.OK:
+            self.params['subject_id'] = exp_info['Subject ID']
+            return True
+        else:
+            return False
         
     def setup_window(self):
         """Setup the display window"""
@@ -214,9 +230,13 @@ class AuditorySequenceExperiment:
         np.random.shuffle(all_blocks)
         self.block_order = all_blocks
         
+        # Create subject-specific data directory
+        subject_dir = os.path.join(self.params['data_save_path'], self.params['subject_id'])
+        os.makedirs(subject_dir, exist_ok=True)
+        
         # Save block order to file
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"block_order_{timestamp}.json"
+        filename = os.path.join(subject_dir, f"block_order_{timestamp}.json")
         
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(self.block_order, f, indent=2, ensure_ascii=False)
@@ -258,7 +278,7 @@ class AuditorySequenceExperiment:
                     audio_filepath = os.path.join(words_path, audio_file)
                     
                     try:
-                        sound_obj = sound.Sound(audio_filepath)
+                        sound_obj = sound.Sound(audio_filepath, sampleRate=48000)
                         syllable_sounds.append(sound_obj)
                         print(f"Loaded: {audio_filepath}")
                     except Exception as e:
@@ -540,8 +560,14 @@ Press any key to begin."""
             self.win.flip()
             core.wait(2.0)
         
+        # Inter-trial interval - empty screen
+        self.win.flip()
+        core.wait(self.params['inter_trial_interval'])
+        self.check_pause()
+        
         # Prepare result
         result = {
+            'subject_id': self.params['subject_id'],
             'trial': trial_num,
             'design': design_name,
             'block_num': block_num,
@@ -568,6 +594,11 @@ Press any key to begin."""
     def run_experiment(self):
         """Run the complete experiment"""
         try:
+            # Get subject information
+            if not self.get_subject_info():
+                print("Experiment cancelled by user.")
+                return
+            
             # Setup
             self.setup_window()
             self.setup_visual_components()
@@ -684,8 +715,12 @@ Press any key to exit."""
     
     def save_results(self):
         """Save experimental results"""
+        # Create subject-specific data directory
+        subject_dir = os.path.join(self.params['data_save_path'], self.params['subject_id'])
+        os.makedirs(subject_dir, exist_ok=True)
+        
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"auditory_sequence_results_{timestamp}.json"
+        filename = os.path.join(subject_dir, f"auditory_sequence_results_{timestamp}.json")
         
         data_to_save = {
             'results': self.results,
