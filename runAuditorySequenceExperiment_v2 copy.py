@@ -25,7 +25,7 @@ class AuditorySequenceExperiment:
             'subject_id': '',                     # Subject ID (will be set via GUI)
             
             # EEG settings
-            'use_eeg_triggers': False,            # Set to True to enable EEG triggers, False for local testing
+            'use_eeg_triggers': True,            # Set to True to enable EEG triggers, False for local testing
             
             # Encoding phase timing (seconds)
             'encoding_fixation_duration': 0.6,    # Initial fixation duration
@@ -89,7 +89,7 @@ class AuditorySequenceExperiment:
         
         if self.params['use_eeg_triggers']:
             try:
-                self.port = parallel.ParallelPort(address=0x7FF7=8)  # Adjust address as needed
+                self.port = parallel.ParallelPort(address=0x7FF78)  # Adjust address as needed
                 self.eeg_enabled = True
                 print("EEG triggers enabled - parallel port initialized.")
             except:
