@@ -53,8 +53,8 @@ class AuditorySequenceExperiment:
             'audio_volume': 0.5,                  # Audio volume (0-1)
             
             # File paths
-            'audio_base_path': '/Users/yufang/WM_load/chinese_audio_output',  # Base path for audio files
-            'data_save_path': '/Users/yufang/WM_load/Data',                   # Base path for saving data
+            'audio_base_path': 'chinese_audio_output',  # Base path for audio files
+            'data_save_path': 'Data',                   # Base path for saving data
             
             # Block designs
             'block_designs': [
