@@ -18,6 +18,12 @@ import pandas as pd
 from psychopy import visual, sound, core, event, data, gui, parallel
 from psychopy.constants import STARTED, FINISHED
 
+from psychopy import prefs
+prefs.hardware['audioLib'] = ['sounddevice', 'pyo', 'ptb']  # Try sounddevice first
+prefs.hardware['audioLatencyMode'] = 3
+prefs.hardware['sampleRate'] = 44100
+prefs.hardware["audioDevice"] == "default"
+
 
 class AuditorySequenceExperiment:
     def __init__(self):
@@ -289,7 +295,7 @@ class AuditorySequenceExperiment:
                     audio_filepath = os.path.join(words_path, audio_file)
                     
                     try:
-                        sound_obj = sound.Sound(audio_filepath, sampleRate=48000)
+                        sound_obj = sound.Sound(audio_filepath, sampleRate=44100)
                         syllable_sounds.append(sound_obj)
                         print(f"Loaded: {audio_filepath}")
                     except Exception as e:
