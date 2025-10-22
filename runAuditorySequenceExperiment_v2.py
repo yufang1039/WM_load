@@ -13,7 +13,11 @@ import json
 import pandas as pd
 from psychopy import visual, sound, core, event, data, gui, parallel
 from psychopy.constants import STARTED, FINISHED
-
+from psychopy import prefs
+# prefs.hardware['audioLib'] = ['sounddevice', 'pyo', 'ptb']  # Try sounddevice first
+# prefs.hardware['audioLatencyMode'] = 3
+# prefs.hardware['sampleRate'] = 44100
+prefs.hardware["audioDevice"] == "Headphones (Realtek(R) Audio)"
 
 class AuditorySequenceExperiment:
     def __init__(self):
