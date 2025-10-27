@@ -16,7 +16,7 @@ from psychopy.constants import STARTED, FINISHED
 from psychopy import prefs
 # prefs.hardware['audioLib'] = ['sounddevice', 'pyo', 'ptb']  # Try sounddevice first
 # prefs.hardware['audioLatencyMode'] = 3
-# prefs.hardware['sampleRate'] = 44100
+prefs.hardware['sampleRate'] = 44100
 prefs.hardware["audioDevice"] == "Headphones (Realtek(R) Audio)"
 
 class AuditorySequenceExperiment:
