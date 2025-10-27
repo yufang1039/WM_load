@@ -151,7 +151,7 @@ class AuditorySequenceExperiment:
         """Setup the display window"""
         self.win = visual.Window(
             size=[1024, 768],
-            fullscr=False,  # Set to True for full screen
+            fullscr=True,  # Set to True for full screen
             screen=0,
             winType='pyglet',
             allowGUI=True,
