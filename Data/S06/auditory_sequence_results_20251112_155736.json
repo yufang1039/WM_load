@@ -1,0 +1,343 @@
+{
+  "results": [
+    {
+      "subject_id": "S06",
+      "trial": 1,
+      "design": "three_4_syllable_words",
+      "block_num": 7,
+      "trial_dir": "trial_1",
+      "num_words": 3,
+      "syllables_per_word": 4,
+      "correct_global": 2,
+      "correct_local": 3,
+      "global_response": 2,
+      "local_response": 3,
+      "global_correct": true,
+      "local_correct": true,
+      "both_correct": true,
+      "global_rt": 0.9370907917618752,
+      "local_rt": 2.9033584999851882,
+      "is_practice": true,
+      "global_first": false
+    },
+    {
+      "subject_id": "S06",
+      "trial": 2,
+      "design": "three_4_syllable_words",
+      "block_num": 7,
+      "trial_dir": "trial_2",
+      "num_words": 3,
+      "syllables_per_word": 4,
+      "correct_global": 1,
+      "correct_local": 4,
+      "global_response": 1,
+      "local_response": 4,
+      "global_correct": true,
+      "local_correct": true,
+      "both_correct": true,
+      "global_rt": 0.2337853331118822,
+      "local_rt": 0.5936526251025498,
+      "is_practice": false,
+      "global_first": false
+    },
+    {
+      "subject_id": "S06",
+      "trial": 3,
+      "design": "three_4_syllable_words",
+      "block_num": 7,
+      "trial_dir": "trial_3",
+      "num_words": 3,
+      "syllables_per_word": 4,
+      "correct_global": 1,
+      "correct_local": 3,
+      "global_response": 1,
+      "local_response": 3,
+      "global_correct": true,
+      "local_correct": true,
+      "both_correct": true,
+      "global_rt": 0.25736933294683695,
+      "local_rt": 0.9048776249401271,
+      "is_practice": false,
+      "global_first": false
+    },
+    {
+      "subject_id": "S06",
+      "trial": 4,
+      "design": "four_3_syllable_words",
+      "block_num": 1,
+      "trial_dir": "trial_1",
+      "num_words": 4,
+      "syllables_per_word": 3,
+      "correct_global": 1,
+      "correct_local": 3,
+      "global_response": 3,
+      "local_response": 2,
+      "global_correct": false,
+      "local_correct": false,
+      "both_correct": false,
+      "global_rt": 0.16652304213494062,
+      "local_rt": 1.971034458372742,
+      "is_practice": true,
+      "global_first": false
+    },
+    {
+      "subject_id": "S06",
+      "trial": 5,
+      "design": "four_3_syllable_words",
+      "block_num": 1,
+      "trial_dir": "trial_2",
+      "num_words": 4,
+      "syllables_per_word": 3,
+      "correct_global": 2,
+      "correct_local": 1,
+      "global_response": 2,
+      "local_response": 1,
+      "global_correct": true,
+      "local_correct": true,
+      "both_correct": true,
+      "global_rt": 1.3648231667466462,
+      "local_rt": 1.0428098747506738,
+      "is_practice": false,
+      "global_first": true
+    },
+    {
+      "subject_id": "S06",
+      "trial": 6,
+      "design": "four_3_syllable_words",
+      "block_num": 1,
+      "trial_dir": "trial_3",
+      "num_words": 4,
+      "syllables_per_word": 3,
+      "correct_global": 2,
+      "correct_local": 3,
+      "global_response": 2,
+      "local_response": 3,
+      "global_correct": true,
+      "local_correct": true,
+      "both_correct": true,
+      "global_rt": 1.4158169999718666,
+      "local_rt": 0.6451964159496129,
+      "is_practice": false,
+      "global_first": true
+    }
+  ],
+  "params": {
+    "subject_id": "S06",
+    "use_eeg_triggers": true,
+    "encoding_fixation_duration": 0.6,
+    "inter_syllable_interval": 0,
+    "retention_delay": 3.0,
+    "neutral_impulse_duration": 0.1,
+    "post_impulse_fixation": 0.8,
+    "report_response_time": 0.5,
+    "inter_report_interval": 0.2,
+    "inter_trial_interval": 1.0,
+    "fixation_size": 1,
+    "circle_radius": 4.0,
+    "text_height": 0.8,
+    "sample_rate": 44100,
+    "audio_volume": 0.5,
+    "audio_base_path": "chinese_audio_output",
+    "data_save_path": "Data",
+    "block_designs": [
+      {
+        "name": "three_3_syllable_words",
+        "num_words": 3,
+        "syllables_per_word": 3
+      },
+      {
+        "name": "three_4_syllable_words",
+        "num_words": 3,
+        "syllables_per_word": 4
+      },
+      {
+        "name": "four_3_syllable_words",
+        "num_words": 4,
+        "syllables_per_word": 3
+      }
+    ],
+    "trigger_cue_start": 1,
+    "trigger_neutral_impulse": 2,
+    "trigger_global_prompt": 3,
+    "trigger_global_response": 4,
+    "trigger_local_prompt": 5,
+    "trigger_local_response": 6
+  },
+  "block_order": [
+    {
+      "design": "three_4_syllable_words",
+      "block_num": 7,
+      "num_words": 3,
+      "syllables_per_word": 4
+    },
+    {
+      "design": "four_3_syllable_words",
+      "block_num": 1,
+      "num_words": 4,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "three_3_syllable_words",
+      "block_num": 9,
+      "num_words": 3,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "three_3_syllable_words",
+      "block_num": 3,
+      "num_words": 3,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "three_4_syllable_words",
+      "block_num": 5,
+      "num_words": 3,
+      "syllables_per_word": 4
+    },
+    {
+      "design": "four_3_syllable_words",
+      "block_num": 7,
+      "num_words": 4,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "three_3_syllable_words",
+      "block_num": 8,
+      "num_words": 3,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "three_4_syllable_words",
+      "block_num": 4,
+      "num_words": 3,
+      "syllables_per_word": 4
+    },
+    {
+      "design": "four_3_syllable_words",
+      "block_num": 3,
+      "num_words": 4,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "three_3_syllable_words",
+      "block_num": 6,
+      "num_words": 3,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "four_3_syllable_words",
+      "block_num": 5,
+      "num_words": 4,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "three_4_syllable_words",
+      "block_num": 1,
+      "num_words": 3,
+      "syllables_per_word": 4
+    },
+    {
+      "design": "four_3_syllable_words",
+      "block_num": 4,
+      "num_words": 4,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "three_3_syllable_words",
+      "block_num": 11,
+      "num_words": 3,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "three_4_syllable_words",
+      "block_num": 3,
+      "num_words": 3,
+      "syllables_per_word": 4
+    },
+    {
+      "design": "three_4_syllable_words",
+      "block_num": 9,
+      "num_words": 3,
+      "syllables_per_word": 4
+    },
+    {
+      "design": "four_3_syllable_words",
+      "block_num": 8,
+      "num_words": 4,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "three_3_syllable_words",
+      "block_num": 7,
+      "num_words": 3,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "three_3_syllable_words",
+      "block_num": 5,
+      "num_words": 3,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "four_3_syllable_words",
+      "block_num": 9,
+      "num_words": 4,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "three_4_syllable_words",
+      "block_num": 2,
+      "num_words": 3,
+      "syllables_per_word": 4
+    },
+    {
+      "design": "three_4_syllable_words",
+      "block_num": 6,
+      "num_words": 3,
+      "syllables_per_word": 4
+    },
+    {
+      "design": "four_3_syllable_words",
+      "block_num": 6,
+      "num_words": 4,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "three_3_syllable_words",
+      "block_num": 2,
+      "num_words": 3,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "three_4_syllable_words",
+      "block_num": 8,
+      "num_words": 3,
+      "syllables_per_word": 4
+    },
+    {
+      "design": "three_3_syllable_words",
+      "block_num": 1,
+      "num_words": 3,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "four_3_syllable_words",
+      "block_num": 2,
+      "num_words": 4,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "three_3_syllable_words",
+      "block_num": 4,
+      "num_words": 3,
+      "syllables_per_word": 3
+    },
+    {
+      "design": "three_3_syllable_words",
+      "block_num": 10,
+      "num_words": 3,
+      "syllables_per_word": 3
+    }
+  ],
+  "timestamp": "20251112_155736"
+}

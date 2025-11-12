@@ -11,6 +11,7 @@ import os
 import datetime
 import json
 import pandas as pd
+import gc
 from psychopy import visual, sound, core, event, data, gui, parallel
 from psychopy.constants import STARTED, FINISHED
 from psychopy import prefs
@@ -34,11 +35,9 @@ class AuditorySequenceExperiment:
             
             # Encoding phase timing (seconds)
             'encoding_fixation_duration': 0.6,    # Initial fixation duration
-            'syllable_duration': 1.6,             # Duration for each syllable presentation
-            'inter_syllable_interval': 0.5,       # Time between syllables
+            'inter_syllable_interval': 0,       # Time between syllables
             
             # Retention phase timing (seconds)
-            'cue_syllable_duration': 1.6,         # Duration of cue syllable
             'retention_delay': 3.0,               # Delay after cue
             'neutral_impulse_duration': 0.1,      # White circle duration
             'post_impulse_fixation': 0.8,         # Fixation after impulse
@@ -211,7 +210,8 @@ class AuditorySequenceExperiment:
     
     def generate_block_order(self):
         """Generate randomized block order for all designs"""
-        all_blocks = []
+        # Collect all blocks organized by design
+        blocks_by_design = {}
         
         for design in self.params['block_designs']:
             design_name = design['name']
@@ -222,17 +222,40 @@ class AuditorySequenceExperiment:
                 block_dirs = [d for d in os.listdir(design_path) if d.startswith('block_') and os.path.isdir(os.path.join(design_path, d))]
                 block_dirs.sort()
                 
+                blocks_by_design[design_name] = []
                 for block_dir in block_dirs:
                     block_num = int(block_dir.split('_')[1])
-                    all_blocks.append({
+                    blocks_by_design[design_name].append({
                         'design': design_name,
                         'block_num': block_num,
                         'num_words': design['num_words'],
                         'syllables_per_word': design['syllables_per_word']
                     })
         
-        # Randomize block order
-        np.random.shuffle(all_blocks)
+        # Randomize blocks within each design
+        for design_name in blocks_by_design:
+            np.random.shuffle(blocks_by_design[design_name])
+        
+        # Create block order ensuring every 3 consecutive blocks contain all 3 designs
+        all_blocks = []
+        design_names = list(blocks_by_design.keys())
+        
+        # Determine how many complete triplets we can make
+        min_blocks_per_design = min(len(blocks_by_design[d]) for d in design_names)
+        
+        # Create triplets (each triplet contains one block from each design)
+        for i in range(min_blocks_per_design):
+            # Create a triplet with one block from each design
+            triplet = [blocks_by_design[d][i] for d in design_names]
+            # Randomize order within the triplet
+            np.random.shuffle(triplet)
+            all_blocks.extend(triplet)
+        
+        # Add any remaining blocks (if designs have unequal numbers of blocks)
+        for design_name in design_names:
+            remaining_blocks = blocks_by_design[design_name][min_blocks_per_design:]
+            all_blocks.extend(remaining_blocks)
+        
         self.block_order = all_blocks
         
         # Create subject-specific data directory
@@ -375,9 +398,9 @@ Press any key to begin."""
                     self.fixation.draw()
                     self.win.flip()
                     
-                    # Play syllable
+                    # Play syllable and wait for its duration
                     syl_sound.play()
-                    core.wait(self.params['syllable_duration'])
+                    core.wait(syl_sound.getDuration())
                     syl_sound.stop()
                     
                     # Inter-syllable interval (except after last syllable of last word)
@@ -395,7 +418,7 @@ Press any key to begin."""
         
         self.send_trigger(self.params['trigger_cue_start'])
         cue_sound.play()
-        core.wait(self.params['cue_syllable_duration'])
+        core.wait(cue_sound.getDuration())
         cue_sound.stop()
         
         # Retention delay
@@ -594,6 +617,36 @@ Press any key to begin."""
         
         print(f"Trial {trial_num} complete: Global {global_response} (correct: {correct_global}), Local {local_response} (correct: {correct_local})")
         
+        # CLEANUP: Unload audio from memory to prevent memory leak
+        try:
+            # Unload all word syllable sounds
+            for syllable_sounds in word_sounds:
+                for syl_sound in syllable_sounds:
+                    if syl_sound:
+                        try:
+                            syl_sound.stop()
+                        except:
+                            pass
+                        del syl_sound
+            
+            # Unload cue sound
+            if cue_sound:
+                try:
+                    cue_sound.stop()
+                except:
+                    pass
+                del cue_sound
+            
+            # Clear references
+            word_sounds = None
+            cue_sound = None
+            
+            # Force garbage collection
+            gc.collect()
+            
+        except Exception as e:
+            print(f"Warning: Error during audio cleanup: {e}")
+        
         return result
     
     def run_experiment(self):
@@ -662,6 +715,10 @@ Press any key to begin."""
                     
                     if result:
                         self.results.append(result)
+                
+                # Save results after each block
+                self.save_results()
+                print(f"Results saved after block {block_idx}")
                 
                 # Block complete message
                 if block_idx < len(self.block_order):

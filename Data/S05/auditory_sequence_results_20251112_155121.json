@@ -1,0 +1,21 @@
+{
+  "results": [
+    {
+      "subject_id": "S05",
+      "trial": 1,
+      "design": "three_3_syllable_words",
+      "block_num": 9,
+      "trial_dir": "trial_1",
+      "num_words": 3,
+      "syllables_per_word": 3,
+      "correct_global": 1,
+      "correct_local": 3,
+      "global_response": 1,
+      "local_response": 3,
+      "global_correct": true,
+      "local_correct": true,
+      "both_correct": true,
+      "global_rt": 0.24167120829224586,
+      "local_rt": 1.96650950005278,
+      "is_practice": true,
+      "global_first": 

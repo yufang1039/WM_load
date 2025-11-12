@@ -1,15 +1,21 @@
 [
   {
     "design": "three_4_syllable_words",
-    "block_num": 6,
+    "block_num": 5,
     "num_words": 3,
     "syllables_per_word": 4
   },
   {
-    "design": "three_4_syllable_words",
-    "block_num": 4,
+    "design": "three_3_syllable_words",
+    "block_num": 5,
     "num_words": 3,
-    "syllables_per_word": 4
+    "syllables_per_word": 3
+  },
+  {
+    "design": "four_3_syllable_words",
+    "block_num": 8,
+    "num_words": 4,
+    "syllables_per_word": 3
   },
   {
     "design": "three_4_syllable_words",
@@ -18,46 +24,10 @@
     "syllables_per_word": 4
   },
   {
-    "design": "three_3_syllable_words",
-    "block_num": 5,
-    "num_words": 3,
-    "syllables_per_word": 3
-  },
-  {
-    "design": "three_3_syllable_words",
+    "design": "four_3_syllable_words",
     "block_num": 4,
-    "num_words": 3,
+    "num_words": 4,
     "syllables_per_word": 3
-  },
-  {
-    "design": "three_3_syllable_words",
-    "block_num": 3,
-    "num_words": 3,
-    "syllables_per_word": 3
-  },
-  {
-    "design": "three_4_syllable_words",
-    "block_num": 8,
-    "num_words": 3,
-    "syllables_per_word": 4
-  },
-  {
-    "design": "three_3_syllable_words",
-    "block_num": 6,
-    "num_words": 3,
-    "syllables_per_word": 3
-  },
-  {
-    "design": "three_3_syllable_words",
-    "block_num": 1,
-    "num_words": 3,
-    "syllables_per_word": 3
-  },
-  {
-    "design": "three_4_syllable_words",
-    "block_num": 5,
-    "num_words": 3,
-    "syllables_per_word": 4
   },
   {
     "design": "three_3_syllable_words",
@@ -66,9 +36,21 @@
     "syllables_per_word": 3
   },
   {
-    "design": "three_3_syllable_words",
-    "block_num": 7,
+    "design": "three_4_syllable_words",
+    "block_num": 1,
     "num_words": 3,
+    "syllables_per_word": 4
+  },
+  {
+    "design": "three_3_syllable_words",
+    "block_num": 9,
+    "num_words": 3,
+    "syllables_per_word": 3
+  },
+  {
+    "design": "four_3_syllable_words",
+    "block_num": 1,
+    "num_words": 4,
     "syllables_per_word": 3
   },
   {
@@ -78,20 +60,98 @@
     "syllables_per_word": 4
   },
   {
+    "design": "four_3_syllable_words",
+    "block_num": 9,
+    "num_words": 4,
+    "syllables_per_word": 3
+  },
+  {
     "design": "three_3_syllable_words",
-    "block_num": 2,
+    "block_num": 4,
     "num_words": 3,
     "syllables_per_word": 3
   },
   {
     "design": "three_3_syllable_words",
+    "block_num": 7,
+    "num_words": 3,
+    "syllables_per_word": 3
+  },
+  {
+    "design": "four_3_syllable_words",
+    "block_num": 7,
+    "num_words": 4,
+    "syllables_per_word": 3
+  },
+  {
+    "design": "three_4_syllable_words",
     "block_num": 9,
     "num_words": 3,
+    "syllables_per_word": 4
+  },
+  {
+    "design": "four_3_syllable_words",
+    "block_num": 2,
+    "num_words": 4,
+    "syllables_per_word": 3
+  },
+  {
+    "design": "three_4_syllable_words",
+    "block_num": 4,
+    "num_words": 3,
+    "syllables_per_word": 4
+  },
+  {
+    "design": "three_3_syllable_words",
+    "block_num": 1,
+    "num_words": 3,
+    "syllables_per_word": 3
+  },
+  {
+    "design": "four_3_syllable_words",
+    "block_num": 5,
+    "num_words": 4,
     "syllables_per_word": 3
   },
   {
     "design": "three_3_syllable_words",
+    "block_num": 6,
+    "num_words": 3,
+    "syllables_per_word": 3
+  },
+  {
+    "design": "three_4_syllable_words",
+    "block_num": 6,
+    "num_words": 3,
+    "syllables_per_word": 4
+  },
+  {
+    "design": "three_4_syllable_words",
     "block_num": 8,
+    "num_words": 3,
+    "syllables_per_word": 4
+  },
+  {
+    "design": "four_3_syllable_words",
+    "block_num": 3,
+    "num_words": 4,
+    "syllables_per_word": 3
+  },
+  {
+    "design": "three_3_syllable_words",
+    "block_num": 3,
+    "num_words": 3,
+    "syllables_per_word": 3
+  },
+  {
+    "design": "four_3_syllable_words",
+    "block_num": 6,
+    "num_words": 4,
+    "syllables_per_word": 3
+  },
+  {
+    "design": "three_3_syllable_words",
+    "block_num": 2,
     "num_words": 3,
     "syllables_per_word": 3
   },
@@ -102,20 +162,14 @@
     "syllables_per_word": 4
   },
   {
-    "design": "three_4_syllable_words",
-    "block_num": 1,
+    "design": "three_3_syllable_words",
+    "block_num": 11,
     "num_words": 3,
-    "syllables_per_word": 4
-  },
-  {
-    "design": "three_4_syllable_words",
-    "block_num": 9,
-    "num_words": 3,
-    "syllables_per_word": 4
+    "syllables_per_word": 3
   },
   {
     "design": "three_3_syllable_words",
-    "block_num": 11,
+    "block_num": 8,
     "num_words": 3,
     "syllables_per_word": 3
   }

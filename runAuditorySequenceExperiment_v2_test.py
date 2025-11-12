@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 """
-Auditory Sequence Memory Experiment using PsychoPy - TEST VERSION
+Auditory Sequence Memory Experiment using PsychoPy
 Tests temporal order memory for auditory syllable sequences
-
-This is a shortened test version with:
-- 1 practice trial + 2 actual trials per block
-- 1 block per design (3 blocks total)
 
 Converted from PsychToolbox MATLAB version
 """
@@ -15,16 +11,15 @@ import os
 import datetime
 import json
 import pandas as pd
-from psychopy import visual, sound, core, event, data, gui, parallel
-from psychopy.constants import STARTED, FINISHED
-
+import gc
 from psychopy import prefs
 
-# prefs.hardware['audioLib'] = ['sounddevice', 'pyo', 'ptb']  # Try sounddevice first
-# prefs.hardware['audioLatencyMode'] = 3
-# prefs.hardware['sampleRate'] = 44100
-# prefs.hardware["audioDevice"] == "default"
+# Set audio backend to pygame (more stable for repeated playback)
+prefs.hardware['audioLib'] = ['pygame']
+prefs.hardware['audioLatencyMode'] = 1
 
+from psychopy import visual, sound, core, event, data, gui, parallel
+from psychopy.constants import STARTED, FINISHED
 
 class AuditorySequenceExperiment:
     def __init__(self):
@@ -36,18 +31,13 @@ class AuditorySequenceExperiment:
             'subject_id': '',                     # Subject ID (will be set via GUI)
             
             # EEG settings
-            'use_eeg_triggers': True,            # Set to True to enable EEG triggers, False for local testing
-            
-            # Performance settings
-            'skip_preloading': True,            # Set to True to skip preloading for faster startup (loads on-demand)
+            'use_eeg_triggers': False,            # Set to True to enable EEG triggers, False for local testing
             
             # Encoding phase timing (seconds)
             'encoding_fixation_duration': 0.6,    # Initial fixation duration
-            'syllable_duration': 1.6,             # Duration for each syllable presentation
-            'inter_syllable_interval': 0.5,       # Time between syllables
+            'inter_syllable_interval': 0,       # Time between syllables
             
             # Retention phase timing (seconds)
-            'cue_syllable_duration': 1.6,         # Duration of cue syllable
             'retention_delay': 3.0,               # Delay after cue
             'neutral_impulse_duration': 0.1,      # White circle duration
             'post_impulse_fixation': 0.8,         # Fixation after impulse
@@ -96,7 +86,6 @@ class AuditorySequenceExperiment:
         self.results = []
         self.block_order = []
         self.paused = False
-        self.audio_cache = {}  # Cache for pre-loaded audio files
         
         # Try to initialize parallel port for EEG triggers only if enabled
         self.port = None
@@ -161,7 +150,7 @@ class AuditorySequenceExperiment:
         """Setup the display window"""
         self.win = visual.Window(
             size=[1024, 768],
-            fullscr=False,  # Set to True for full screen
+            fullscr=True,  # Set to True for full screen
             screen=0,
             winType='pyglet',
             allowGUI=True,
@@ -220,8 +209,9 @@ class AuditorySequenceExperiment:
         )
     
     def generate_block_order(self):
-        """Generate randomized block order for all designs - TEST VERSION with 1 block per design"""
-        all_blocks = []
+        """Generate randomized block order for all designs"""
+        # Collect all blocks organized by design
+        blocks_by_design = {}
         
         for design in self.params['block_designs']:
             design_name = design['name']
@@ -232,19 +222,40 @@ class AuditorySequenceExperiment:
                 block_dirs = [d for d in os.listdir(design_path) if d.startswith('block_') and os.path.isdir(os.path.join(design_path, d))]
                 block_dirs.sort()
                 
-                # TEST VERSION: Only use the first block for each design
-                if block_dirs:
-                    block_dir = block_dirs[0]
+                blocks_by_design[design_name] = []
+                for block_dir in block_dirs:
                     block_num = int(block_dir.split('_')[1])
-                    all_blocks.append({
+                    blocks_by_design[design_name].append({
                         'design': design_name,
                         'block_num': block_num,
                         'num_words': design['num_words'],
                         'syllables_per_word': design['syllables_per_word']
                     })
         
-        # Randomize block order
-        np.random.shuffle(all_blocks)
+        # Randomize blocks within each design
+        for design_name in blocks_by_design:
+            np.random.shuffle(blocks_by_design[design_name])
+        
+        # Create block order ensuring every 3 consecutive blocks contain all 3 designs
+        all_blocks = []
+        design_names = list(blocks_by_design.keys())
+        
+        # Determine how many complete triplets we can make
+        min_blocks_per_design = min(len(blocks_by_design[d]) for d in design_names)
+        
+        # Create triplets (each triplet contains one block from each design)
+        for i in range(min_blocks_per_design):
+            # Create a triplet with one block from each design
+            triplet = [blocks_by_design[d][i] for d in design_names]
+            # Randomize order within the triplet
+            np.random.shuffle(triplet)
+            all_blocks.extend(triplet)
+        
+        # Add any remaining blocks (if designs have unequal numbers of blocks)
+        for design_name in design_names:
+            remaining_blocks = blocks_by_design[design_name][min_blocks_per_design:]
+            all_blocks.extend(remaining_blocks)
+        
         self.block_order = all_blocks
         
         # Create subject-specific data directory
@@ -259,12 +270,12 @@ class AuditorySequenceExperiment:
             json.dump(self.block_order, f, indent=2, ensure_ascii=False)
         
         print(f"Block order saved to {filename}")
-        print(f"Total blocks: {len(self.block_order)} (TEST VERSION)")
+        print(f"Total blocks: {len(self.block_order)}")
         
         return filename
     
     def get_trials_in_block(self, design_name, block_num):
-        """Get list of trials in a block - TEST VERSION returns only 3 trials (1 practice + 2 actual)"""
+        """Get list of trials in a block (limited to first 3 for testing)"""
         block_path = os.path.join(self.params['audio_base_path'], design_name, f'block_{block_num}')
         
         if not os.path.exists(block_path):
@@ -274,19 +285,24 @@ class AuditorySequenceExperiment:
         trial_dirs = [d for d in os.listdir(block_path) if d.startswith('trial_') and os.path.isdir(os.path.join(block_path, d))]
         trial_dirs.sort(key=lambda x: int(x.split('_')[1]))
         
-        # TEST VERSION: Only return first 3 trials (1 practice + 2 actual)
-        return trial_dirs[:3]
+        # Only use first 3 trials for testing
+        # return trial_dirs[:3]
+        return trial_dirs
     
     def load_trial_audio(self, design_name, block_num, trial_dir, num_words, syllables_per_word):
-        """Load audio files for a trial"""
+        """Load audio file paths for a trial (just-in-time loading strategy)
+        
+        Returns filepaths instead of Sound objects to prevent memory buildup.
+        Sound objects are created and destroyed immediately when needed during playback.
+        """
         trial_path = os.path.join(self.params['audio_base_path'], design_name, f'block_{block_num}', trial_dir)
         words_path = os.path.join(trial_path, 'words')
         cue_path = os.path.join(trial_path, 'cue')
         
-        # Load word syllables
-        word_sounds = []
+        # Load word syllables - store filepaths instead of Sound objects
+        word_filepaths = []
         for word_idx in range(1, num_words + 1):
-            syllable_sounds = []
+            syllable_filepaths = []
             for syl_idx in range(1, syllables_per_word + 1):
                 # Find audio file matching pattern
                 audio_files = [f for f in os.listdir(words_path) if f.startswith(f'word{word_idx}_syllable_{syl_idx}_')]
@@ -294,227 +310,38 @@ class AuditorySequenceExperiment:
                 if audio_files:
                     audio_file = audio_files[0]
                     audio_filepath = os.path.join(words_path, audio_file)
-                    
-                    try:
-                        sound_obj = sound.Sound(audio_filepath, sampleRate=44100)
-                        syllable_sounds.append(sound_obj)
-                        print(f"Loaded: {audio_filepath}")
-                    except Exception as e:
-                        print(f"Error loading {audio_filepath}: {e}")
-                        syllable_sounds.append(None)
+                    syllable_filepaths.append(audio_filepath)
+                    print(f"Found: {audio_filepath}")
                 else:
                     print(f"Audio file not found for word{word_idx}_syllable_{syl_idx}")
-                    syllable_sounds.append(None)
+                    syllable_filepaths.append(None)
             
-            word_sounds.append(syllable_sounds)
+            word_filepaths.append(syllable_filepaths)
         
-        # Load cue audio
+        # Load cue audio - store filepath
         cue_files = [f for f in os.listdir(cue_path) if f.endswith('.mp3')]
-        cue_sound = None
+        cue_filepath = None
         cue_info = None
         
         if cue_files:
             cue_file = cue_files[0]
             cue_filepath = os.path.join(cue_path, cue_file)
+            print(f"Found cue: {cue_filepath}")
             
             try:
-                cue_sound = sound.Sound(cue_filepath)
-                print(f"Loaded cue: {cue_filepath}")
-                
                 # Parse cue info from filename (e.g., word1_syllable_3_蒸馏水_水.mp3)
                 parts = cue_file.split('_')
                 cue_word = int(parts[0].replace('word', ''))
                 cue_syllable = int(parts[2])
                 cue_info = {'word': cue_word, 'syllable': cue_syllable}
-                
             except Exception as e:
-                print(f"Error loading cue {cue_filepath}: {e}")
+                print(f"Error parsing cue info from {cue_file}: {e}")
         
-        return word_sounds, cue_sound, cue_info
-    
-    def load_trial_audio_optimized(self, design_name, block_num, trial_dir, words_path, words_files, cue_path, cue_files):
-        """Optimized audio loading using pre-scanned file lists"""
-        num_words = None
-        syllables_per_word = None
-        
-        # Get design parameters
-        for design in self.params['block_designs']:
-            if design['name'] == design_name:
-                num_words = design['num_words']
-                syllables_per_word = design['syllables_per_word']
-                break
-        
-        if num_words is None or syllables_per_word is None:
-            print(f"Error: Design parameters not found for {design_name}")
-            return [], None, None
-        
-        # Load word syllables with optimized file matching
-        word_sounds = []
-        for word_idx in range(1, num_words + 1):
-            syllable_sounds = []
-            for syl_idx in range(1, syllables_per_word + 1):
-                # More efficient file matching using pre-scanned files
-                pattern = f'word{word_idx}_syllable_{syl_idx}_'
-                matching_files = [f for f in words_files if f.startswith(pattern)]
-                
-                if matching_files:
-                    audio_file = matching_files[0]
-                    audio_filepath = os.path.join(words_path, audio_file)
-                    
-                    try:
-                        # Use default sample rate to avoid conversion overhead
-                        sound_obj = sound.Sound(audio_filepath)
-                        syllable_sounds.append(sound_obj)
-                    except Exception as e:
-                        print(f"Error loading {audio_filepath}: {e}")
-                        syllable_sounds.append(None)
-                else:
-                    syllable_sounds.append(None)
-            
-            word_sounds.append(syllable_sounds)
-        
-        # Load cue audio
-        cue_sound = None
-        cue_info = None
-        
-        if cue_files:
-            cue_file = cue_files[0]
-            cue_filepath = os.path.join(cue_path, cue_file)
-            
-            try:
-                cue_sound = sound.Sound(cue_filepath)
-                # Parse cue info
-                parts = cue_file.split('_')
-                cue_word = int(parts[0].replace('word', ''))
-                cue_syllable = int(parts[2])
-                cue_info = {'word': cue_word, 'syllable': cue_syllable}
-            except Exception as e:
-                print(f"Error loading cue {cue_filepath}: {e}")
-        
-        return word_sounds, cue_sound, cue_info
-    
-    def preload_all_audio(self):
-        """Pre-load all audio files at experiment start with optimized loading"""
-        print("Starting optimized audio pre-loading...")
-        
-        # Calculate total number of trials for progress tracking
-        total_trials = 0
-        for block_info in self.block_order:
-            design_name = block_info['design']
-            block_num = block_info['block_num']
-            trial_dirs = self.get_trials_in_block(design_name, block_num)
-            total_trials += len(trial_dirs)
-        
-        print(f"Total trials to pre-load: {total_trials}")
-        
-        # Show loading screen
-        self.show_loading_screen(0, total_trials, "Preparing audio files...")
-        
-        current_trial = 0
-        
-        # Pre-scan all directories to reduce file I/O
-        all_audio_files = {}
-        for block_info in self.block_order:
-            design_name = block_info['design']
-            block_num = block_info['block_num']
-            trial_dirs = self.get_trials_in_block(design_name, block_num)
-            
-            for trial_dir in trial_dirs:
-                trial_path = os.path.join(self.params['audio_base_path'], design_name, f'block_{block_num}', trial_dir)
-                words_path = os.path.join(trial_path, 'words')
-                cue_path = os.path.join(trial_path, 'cue')
-                
-                # Pre-scan directories once
-                words_files = set(os.listdir(words_path)) if os.path.exists(words_path) else set()
-                cue_files = [f for f in os.listdir(cue_path) if f.endswith('.mp3')] if os.path.exists(cue_path) else []
-                
-                cache_key = f"{design_name}_{block_num}_{trial_dir}"
-                all_audio_files[cache_key] = {
-                    'words_path': words_path,
-                    'words_files': words_files,
-                    'cue_path': cue_path,
-                    'cue_files': cue_files,
-                    'design_name': design_name,
-                    'block_num': block_num,
-                    'trial_dir': trial_dir
-                }
-        
-        # Now load audio files in batches for better performance
-        batch_size = 5  # Load 5 trials at a time
-        audio_batches = list(all_audio_files.items())
-        
-        for i in range(0, len(audio_batches), batch_size):
-            batch = audio_batches[i:i + batch_size]
-            
-            # Update loading screen for batch
-            self.show_loading_screen(current_trial, total_trials, 
-                                   f"Loading batch {i//batch_size + 1}/{(len(audio_batches)-1)//batch_size + 1}")
-            
-            # Load audio for this batch
-            for cache_key, file_info in batch:
-                current_trial += 1
-                
-                # Load audio for this trial using pre-scanned file lists
-                word_sounds, cue_sound, cue_info = self.load_trial_audio_optimized(
-                    file_info['design_name'], 
-                    file_info['block_num'], 
-                    file_info['trial_dir'],
-                    file_info['words_path'],
-                    file_info['words_files'],
-                    file_info['cue_path'],
-                    file_info['cue_files']
-                )
-                
-                # Cache the audio
-                self.audio_cache[cache_key] = {
-                    'word_sounds': word_sounds,
-                    'cue_sound': cue_sound,
-                    'cue_info': cue_info
-                }
-                
-                print(f"Pre-loaded audio for {cache_key}")
-        
-        # Show completion message
-        self.show_loading_screen(total_trials, total_trials, "Audio loading complete!")
-        core.wait(0.5)  # Brief pause to show completion
-        
-        print(f"Audio pre-loading complete! Cached {len(self.audio_cache)} trials.")
-    
-    def show_loading_screen(self, current, total, message="Loading audio files..."):
-        """Show loading screen with progress"""
-        progress = current / total if total > 0 else 0
-        progress_bar_width = 20
-        filled_width = int(progress * progress_bar_width)
-        progress_bar = "█" * filled_width + "░" * (progress_bar_width - filled_width)
-        
-        loading_text = f"""{message}
-
-Progress: [{progress_bar}] {current}/{total} ({progress*100:.1f}%)
-
-Please wait while audio files are being loaded..."""
-        
-        self.instruction_text.text = loading_text
-        self.instruction_text.draw()
-        self.win.flip()
-    
-    def get_cached_audio(self, design_name, block_num, trial_dir):
-        """Get pre-loaded audio for a trial"""
-        cache_key = f"{design_name}_{block_num}_{trial_dir}"
-        cached_data = self.audio_cache.get(cache_key)
-        
-        if cached_data:
-            return (cached_data['word_sounds'], 
-                   cached_data['cue_sound'], 
-                   cached_data['cue_info'])
-        else:
-            print(f"Warning: No cached audio found for {cache_key}")
-            return (None, None, None)
+        return word_filepaths, cue_filepath, cue_info
     
     def show_instructions(self):
         """Show experiment instructions"""
         instructions = """Welcome to the Auditory Sequence Memory Experiment!
-
-TEST VERSION: 3 trials per block (1 practice + 2 actual)
 
 You will hear sequences of syllables from Chinese words.
 After a delay, you will hear one syllable again as a cue.
@@ -539,26 +366,19 @@ Press any key to begin."""
     def run_trial(self, trial_num, design_name, block_num, trial_dir, num_words, syllables_per_word, is_practice=False):
         """Run a single trial"""
         
-        # Get audio for this trial (pre-loaded or load on-demand)
-        if not self.params['skip_preloading']:
-            # Use pre-loaded audio
-            word_sounds, cue_sound, cue_info = self.get_cached_audio(
-                design_name, block_num, trial_dir
-            )
-        else:
-            # Load on-demand (faster startup, but may cause brief delays)
-            word_sounds, cue_sound, cue_info = self.load_trial_audio(
-                design_name, block_num, trial_dir, num_words, syllables_per_word
-            )
+        # Load audio filepaths for this trial
+        word_filepaths, cue_filepath, cue_info = self.load_trial_audio(
+            design_name, block_num, trial_dir, num_words, syllables_per_word
+        )
         
-        if not cue_sound or not cue_info:
+        if not cue_filepath or not cue_info:
             print(f"Error: Could not load trial audio for {trial_dir}")
             return None
         
         print(f"Trial {trial_num}: {design_name}, Block {block_num}, {trial_dir}")
         
         # Randomly determine report order (True = global first, False = local first)
-        global_first = np.random.choice([True, False])
+        global_first = bool(np.random.choice([True, False]))
         
         # ENCODING PHASE
         # Initial fixation
@@ -568,20 +388,30 @@ Press any key to begin."""
         self.check_pause()
         
         # Present all words and syllables in sequence
-        for word_idx, syllable_sounds in enumerate(word_sounds):
-            for syl_idx, syl_sound in enumerate(syllable_sounds):
-                if syl_sound:
+        for word_idx, syllable_filepaths in enumerate(word_filepaths):
+            for syl_idx, syl_filepath in enumerate(syllable_filepaths):
+                if syl_filepath:
                     # Show fixation during syllable
                     self.fixation.draw()
                     self.win.flip()
                     
-                    # Play syllable
-                    syl_sound.play()
-                    core.wait(self.params['syllable_duration'])
-                    syl_sound.stop()
+                    # Load sound just-in-time
+                    try:
+                        syl_sound = sound.Sound(syl_filepath, sampleRate=48000)
+                        
+                        # Play syllable and wait for its duration
+                        syl_sound.play()
+                        core.wait(syl_sound.getDuration())
+                        syl_sound.stop()
+                        
+                        # Immediately cleanup
+                        del syl_sound
+                        
+                    except Exception as e:
+                        print(f"Error playing {syl_filepath}: {e}")
                     
                     # Inter-syllable interval (except after last syllable of last word)
-                    if not (word_idx == len(word_sounds) - 1 and syl_idx == len(syllable_sounds) - 1):
+                    if not (word_idx == len(word_filepaths) - 1 and syl_idx == len(syllable_filepaths) - 1):
                         core.wait(self.params['inter_syllable_interval'])
                     
                     self.check_pause()
@@ -589,14 +419,23 @@ Press any key to begin."""
         # RETENTION PHASE
         print(f"Trial {trial_num}: Retention phase")
         
-        # Present cue syllable
+        # Present cue syllable - load just-in-time
         self.fixation.draw()
         self.win.flip()
         
-        self.send_trigger(self.params['trigger_cue_start'])
-        cue_sound.play()
-        core.wait(self.params['cue_syllable_duration'])
-        cue_sound.stop()
+        try:
+            cue_sound = sound.Sound(cue_filepath, sampleRate=48000)
+            
+            self.send_trigger(self.params['trigger_cue_start'])
+            cue_sound.play()
+            core.wait(cue_sound.getDuration())
+            cue_sound.stop()
+            
+            # Immediately cleanup
+            del cue_sound
+            
+        except Exception as e:
+            print(f"Error playing cue {cue_filepath}: {e}")
         
         # Retention delay
         core.wait(self.params['retention_delay'])
@@ -748,9 +587,9 @@ Press any key to begin."""
         correct_global = cue_info['word']
         correct_local = cue_info['syllable']
         
-        global_correct = (global_response == correct_global)
-        local_correct = (local_response == correct_local)
-        both_correct = global_correct and local_correct
+        global_correct = bool(global_response == correct_global)
+        local_correct = bool(local_response == correct_local)
+        both_correct = bool(global_correct and local_correct)
         
         # Show feedback for practice trials
         if is_practice:
@@ -794,6 +633,10 @@ Press any key to begin."""
         
         print(f"Trial {trial_num} complete: Global {global_response} (correct: {correct_global}), Local {local_response} (correct: {correct_local})")
         
+        # Force garbage collection and give audio subsystem time to fully release resources
+        gc.collect()
+        core.wait(0.05)  # Small delay to let audio backend cleanup
+        
         return result
     
     def run_experiment(self):
@@ -814,15 +657,6 @@ Press any key to begin."""
             # Show instructions
             self.show_instructions()
             
-            # Pre-load all audio files with loading screen (unless skipped)
-            if not self.params['skip_preloading']:
-                print("Pre-loading all audio files...")
-                self.preload_all_audio()
-            else:
-                print("Skipping preloading - audio will be loaded on-demand")
-                self.show_loading_screen(1, 1, "Skipping audio preloading...")
-                core.wait(0.5)
-            
             # Run all blocks
             print("Starting experiment...")
             self.results = []
@@ -834,7 +668,7 @@ Press any key to begin."""
                 num_words = block_info['num_words']
                 syllables_per_word = block_info['syllables_per_word']
                 
-                # Get trials in this block
+                # Get trials in this block (limited to first 3 for testing)
                 trial_dirs = self.get_trials_in_block(design_name, block_num)
                 
                 if not trial_dirs:
@@ -871,6 +705,10 @@ Press any key to begin."""
                     
                     if result:
                         self.results.append(result)
+                
+                # Save results after each block
+                self.save_results()
+                print(f"Results saved after block {block_idx}")
                 
                 # Block complete message
                 if block_idx < len(self.block_order):
