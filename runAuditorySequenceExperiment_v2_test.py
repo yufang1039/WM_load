@@ -49,7 +49,7 @@ class AuditorySequenceExperiment:
             
             # Visual parameters
             'fixation_size': 1,                   # Fixation cross size (degrees)
-            'circle_radius': 4.0,                 # Neutral impulse circle radius (degrees)
+            'circle_radius': 7.0,                 # Neutral impulse circle radius (degrees)
             'text_height': 0.8,                   # Text height (degrees)
             
             # Audio parameters
@@ -208,6 +208,62 @@ class AuditorySequenceExperiment:
             wrapWidth=20
         )
     
+    def find_existing_block_order(self):
+        """Find existing block order file for this subject"""
+        subject_dir = os.path.join(self.params['data_save_path'], self.params['subject_id'])
+        
+        if not os.path.exists(subject_dir):
+            return None
+        
+        # Find all block order files
+        block_order_files = [f for f in os.listdir(subject_dir) if f.startswith('block_order_') and f.endswith('.json')]
+        
+        if not block_order_files:
+            return None
+        
+        # Use the most recent one
+        block_order_files.sort(reverse=True)
+        return os.path.join(subject_dir, block_order_files[0])
+    
+    def find_last_completed_block(self):
+        """Find the last completed block from existing results"""
+        subject_dir = os.path.join(self.params['data_save_path'], self.params['subject_id'])
+        
+        if not os.path.exists(subject_dir):
+            return -1, []
+        
+        # Find all result files
+        result_files = [f for f in os.listdir(subject_dir) if f.startswith('auditory_sequence_results_') and f.endswith('.json')]
+        
+        if not result_files:
+            return -1, []
+        
+        # Use the most recent one
+        result_files.sort(reverse=True)
+        result_file = os.path.join(subject_dir, result_files[0])
+        
+        try:
+            with open(result_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            results = data.get('results', [])
+            
+            if not results:
+                return -1, []
+            
+            # Find the last completed block (excluding practice trials)
+            completed_blocks = set()
+            for result in results:
+                if not result.get('is_practice', False):
+                    block_key = (result['design'], result['block_num'])
+                    completed_blocks.add(block_key)
+            
+            return len(completed_blocks) - 1, results
+            
+        except Exception as e:
+            print(f"Error reading results file: {e}")
+            return -1, []
+    
     def generate_block_order(self):
         """Generate randomized block order for all designs"""
         # Collect all blocks organized by design
@@ -274,6 +330,19 @@ class AuditorySequenceExperiment:
         
         return filename
     
+    def load_block_order(self, filename):
+        """Load existing block order from file"""
+        try:
+            with open(filename, 'r', encoding='utf-8') as f:
+                self.block_order = json.load(f)
+            
+            print(f"Loaded existing block order from {filename}")
+            print(f"Total blocks: {len(self.block_order)}")
+            return True
+        except Exception as e:
+            print(f"Error loading block order: {e}")
+            return False
+    
     def get_trials_in_block(self, design_name, block_num):
         """Get list of trials in a block (limited to first 3 for testing)"""
         block_path = os.path.join(self.params['audio_base_path'], design_name, f'block_{block_num}')
@@ -286,8 +355,8 @@ class AuditorySequenceExperiment:
         trial_dirs.sort(key=lambda x: int(x.split('_')[1]))
         
         # Only use first 3 trials for testing
-        # return trial_dirs[:3]
-        return trial_dirs
+        return trial_dirs[:3]
+        # return trial_dirs
     
     def load_trial_audio(self, design_name, block_num, trial_dir, num_words, syllables_per_word):
         """Load audio file paths for a trial (just-in-time loading strategy)
@@ -651,18 +720,52 @@ Press any key to begin."""
             self.setup_window()
             self.setup_visual_components()
             
-            # Generate and save block order
-            block_order_file = self.generate_block_order()
+            # Check for existing block order and results
+            existing_block_order_file = self.find_existing_block_order()
+            last_completed_block_idx, existing_results = self.find_last_completed_block()
+            
+            # Load existing results if any
+            self.results = existing_results
+            
+            # Determine starting point
+            start_block_idx = last_completed_block_idx + 1
+            
+            if existing_block_order_file and start_block_idx > 0:
+                # Resume from existing block order
+                print(f"Found existing session. Resuming from block {start_block_idx + 1}")
+                if not self.load_block_order(existing_block_order_file):
+                    print("Failed to load existing block order. Generating new one.")
+                    self.generate_block_order()
+                    start_block_idx = 0
+            else:
+                # Generate new block order
+                print("Starting new session. Generating block order.")
+                self.generate_block_order()
+                start_block_idx = 0
             
             # Show instructions
-            self.show_instructions()
+            if start_block_idx == 0:
+                self.show_instructions()
+            else:
+                # Show resume message
+                resume_msg = f"""Resuming Experiment
+
+You have completed {start_block_idx} block(s).
+Starting from block {start_block_idx + 1} of {len(self.block_order)}.
+
+Press any key to continue."""
+                
+                self.instruction_text.text = resume_msg
+                self.instruction_text.draw()
+                self.win.flip()
+                event.waitKeys()
             
-            # Run all blocks
-            print("Starting experiment...")
-            self.results = []
-            trial_counter = 0
+            # Run blocks starting from the resume point
+            print(f"Starting experiment from block {start_block_idx + 1}...")
+            trial_counter = len([r for r in self.results if not r.get('is_practice', False)])
             
-            for block_idx, block_info in enumerate(self.block_order, 1):
+            for block_idx in range(start_block_idx, len(self.block_order)):
+                block_info = self.block_order[block_idx]
                 design_name = block_info['design']
                 block_num = block_info['block_num']
                 num_words = block_info['num_words']
@@ -676,7 +779,7 @@ Press any key to begin."""
                     continue
                 
                 # Show block start message
-                block_msg = f"Block {block_idx} of {len(self.block_order)}\n\n"
+                block_msg = f"Block {block_idx + 1} of {len(self.block_order)}\n\n"
                 block_msg += f"{design_name.replace('_', ' ').title()}\n\n"
                 block_msg += f"First trial is practice.\n\n"
                 block_msg += "Press any key to start."
@@ -708,11 +811,11 @@ Press any key to begin."""
                 
                 # Save results after each block
                 self.save_results()
-                print(f"Results saved after block {block_idx}")
+                print(f"Results saved after block {block_idx + 1}")
                 
                 # Block complete message
-                if block_idx < len(self.block_order):
-                    block_complete_msg = f"Block {block_idx} complete!\n\nTake a short break.\n\nPress any key to continue."
+                if block_idx < len(self.block_order) - 1:
+                    block_complete_msg = f"Block {block_idx + 1} complete!\n\nTake a short break.\n\nPress any key to continue."
                     self.instruction_text.text = block_complete_msg
                     self.instruction_text.draw()
                     self.win.flip()

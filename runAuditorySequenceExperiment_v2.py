@@ -12,14 +12,14 @@ import datetime
 import json
 import pandas as pd
 import gc
-from psychopy import visual, sound, core, event, data, gui, parallel
-from psychopy.constants import STARTED, FINISHED
 from psychopy import prefs
 
-# prefs.hardware['audioLib'] = ['sounddevice', 'pyo', 'ptb']  # Try sounddevice first
-# prefs.hardware['audioLatencyMode'] = 3
-# prefs.hardware['sampleRate'] = 44100
-# prefs.hardware["audioDevice"] == "Headphones (Realtek(R) Audio)"
+# Set audio backend to pygame (more stable for repeated playback)
+prefs.hardware['audioLib'] = ['pygame']
+prefs.hardware['audioLatencyMode'] = 1
+
+from psychopy import visual, sound, core, event, data, gui, parallel
+from psychopy.constants import STARTED, FINISHED
 
 class AuditorySequenceExperiment:
     def __init__(self):
@@ -31,7 +31,7 @@ class AuditorySequenceExperiment:
             'subject_id': '',                     # Subject ID (will be set via GUI)
             
             # EEG settings
-            'use_eeg_triggers': True,            # Set to True to enable EEG triggers, False for local testing
+            'use_eeg_triggers': False,            # Set to True to enable EEG triggers, False for local testing
             
             # Encoding phase timing (seconds)
             'encoding_fixation_duration': 0.6,    # Initial fixation duration
@@ -49,7 +49,7 @@ class AuditorySequenceExperiment:
             
             # Visual parameters
             'fixation_size': 1,                   # Fixation cross size (degrees)
-            'circle_radius': 4.0,                 # Neutral impulse circle radius (degrees)
+            'circle_radius': 7.0,                 # Neutral impulse circle radius (degrees)
             'text_height': 0.8,                   # Text height (degrees)
             
             # Audio parameters
@@ -208,6 +208,62 @@ class AuditorySequenceExperiment:
             wrapWidth=20
         )
     
+    def find_existing_block_order(self):
+        """Find existing block order file for this subject"""
+        subject_dir = os.path.join(self.params['data_save_path'], self.params['subject_id'])
+        
+        if not os.path.exists(subject_dir):
+            return None
+        
+        # Find all block order files
+        block_order_files = [f for f in os.listdir(subject_dir) if f.startswith('block_order_') and f.endswith('.json')]
+        
+        if not block_order_files:
+            return None
+        
+        # Use the most recent one
+        block_order_files.sort(reverse=True)
+        return os.path.join(subject_dir, block_order_files[0])
+    
+    def find_last_completed_block(self):
+        """Find the last completed block from existing results"""
+        subject_dir = os.path.join(self.params['data_save_path'], self.params['subject_id'])
+        
+        if not os.path.exists(subject_dir):
+            return -1, []
+        
+        # Find all result files
+        result_files = [f for f in os.listdir(subject_dir) if f.startswith('auditory_sequence_results_') and f.endswith('.json')]
+        
+        if not result_files:
+            return -1, []
+        
+        # Use the most recent one
+        result_files.sort(reverse=True)
+        result_file = os.path.join(subject_dir, result_files[0])
+        
+        try:
+            with open(result_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            results = data.get('results', [])
+            
+            if not results:
+                return -1, []
+            
+            # Find the last completed block (excluding practice trials)
+            completed_blocks = set()
+            for result in results:
+                if not result.get('is_practice', False):
+                    block_key = (result['design'], result['block_num'])
+                    completed_blocks.add(block_key)
+            
+            return len(completed_blocks) - 1, results
+            
+        except Exception as e:
+            print(f"Error reading results file: {e}")
+            return -1, []
+    
     def generate_block_order(self):
         """Generate randomized block order for all designs"""
         # Collect all blocks organized by design
@@ -274,8 +330,21 @@ class AuditorySequenceExperiment:
         
         return filename
     
+    def load_block_order(self, filename):
+        """Load existing block order from file"""
+        try:
+            with open(filename, 'r', encoding='utf-8') as f:
+                self.block_order = json.load(f)
+            
+            print(f"Loaded existing block order from {filename}")
+            print(f"Total blocks: {len(self.block_order)}")
+            return True
+        except Exception as e:
+            print(f"Error loading block order: {e}")
+            return False
+    
     def get_trials_in_block(self, design_name, block_num):
-        """Get list of trials in a block"""
+        """Get list of trials in a block (limited to first 3 for testing)"""
         block_path = os.path.join(self.params['audio_base_path'], design_name, f'block_{block_num}')
         
         if not os.path.exists(block_path):
@@ -285,18 +354,24 @@ class AuditorySequenceExperiment:
         trial_dirs = [d for d in os.listdir(block_path) if d.startswith('trial_') and os.path.isdir(os.path.join(block_path, d))]
         trial_dirs.sort(key=lambda x: int(x.split('_')[1]))
         
+        # Only use first 3 trials for testing
+        # return trial_dirs[:3]
         return trial_dirs
     
     def load_trial_audio(self, design_name, block_num, trial_dir, num_words, syllables_per_word):
-        """Load audio files for a trial"""
+        """Load audio file paths for a trial (just-in-time loading strategy)
+        
+        Returns filepaths instead of Sound objects to prevent memory buildup.
+        Sound objects are created and destroyed immediately when needed during playback.
+        """
         trial_path = os.path.join(self.params['audio_base_path'], design_name, f'block_{block_num}', trial_dir)
         words_path = os.path.join(trial_path, 'words')
         cue_path = os.path.join(trial_path, 'cue')
         
-        # Load word syllables
-        word_sounds = []
+        # Load word syllables - store filepaths instead of Sound objects
+        word_filepaths = []
         for word_idx in range(1, num_words + 1):
-            syllable_sounds = []
+            syllable_filepaths = []
             for syl_idx in range(1, syllables_per_word + 1):
                 # Find audio file matching pattern
                 audio_files = [f for f in os.listdir(words_path) if f.startswith(f'word{word_idx}_syllable_{syl_idx}_')]
@@ -304,43 +379,34 @@ class AuditorySequenceExperiment:
                 if audio_files:
                     audio_file = audio_files[0]
                     audio_filepath = os.path.join(words_path, audio_file)
-                    
-                    try:
-                        sound_obj = sound.Sound(audio_filepath, sampleRate=48000)
-                        syllable_sounds.append(sound_obj)
-                        print(f"Loaded: {audio_filepath}")
-                    except Exception as e:
-                        print(f"Error loading {audio_filepath}: {e}")
-                        syllable_sounds.append(None)
+                    syllable_filepaths.append(audio_filepath)
+                    print(f"Found: {audio_filepath}")
                 else:
                     print(f"Audio file not found for word{word_idx}_syllable_{syl_idx}")
-                    syllable_sounds.append(None)
+                    syllable_filepaths.append(None)
             
-            word_sounds.append(syllable_sounds)
+            word_filepaths.append(syllable_filepaths)
         
-        # Load cue audio
+        # Load cue audio - store filepath
         cue_files = [f for f in os.listdir(cue_path) if f.endswith('.mp3')]
-        cue_sound = None
+        cue_filepath = None
         cue_info = None
         
         if cue_files:
             cue_file = cue_files[0]
             cue_filepath = os.path.join(cue_path, cue_file)
+            print(f"Found cue: {cue_filepath}")
             
             try:
-                cue_sound = sound.Sound(cue_filepath)
-                print(f"Loaded cue: {cue_filepath}")
-                
                 # Parse cue info from filename (e.g., word1_syllable_3_蒸馏水_水.mp3)
                 parts = cue_file.split('_')
                 cue_word = int(parts[0].replace('word', ''))
                 cue_syllable = int(parts[2])
                 cue_info = {'word': cue_word, 'syllable': cue_syllable}
-                
             except Exception as e:
-                print(f"Error loading cue {cue_filepath}: {e}")
+                print(f"Error parsing cue info from {cue_file}: {e}")
         
-        return word_sounds, cue_sound, cue_info
+        return word_filepaths, cue_filepath, cue_info
     
     def show_instructions(self):
         """Show experiment instructions"""
@@ -369,19 +435,19 @@ Press any key to begin."""
     def run_trial(self, trial_num, design_name, block_num, trial_dir, num_words, syllables_per_word, is_practice=False):
         """Run a single trial"""
         
-        # Load audio for this trial
-        word_sounds, cue_sound, cue_info = self.load_trial_audio(
+        # Load audio filepaths for this trial
+        word_filepaths, cue_filepath, cue_info = self.load_trial_audio(
             design_name, block_num, trial_dir, num_words, syllables_per_word
         )
         
-        if not cue_sound or not cue_info:
+        if not cue_filepath or not cue_info:
             print(f"Error: Could not load trial audio for {trial_dir}")
             return None
         
         print(f"Trial {trial_num}: {design_name}, Block {block_num}, {trial_dir}")
         
         # Randomly determine report order (True = global first, False = local first)
-        global_first = np.random.choice([True, False])
+        global_first = bool(np.random.choice([True, False]))
         
         # ENCODING PHASE
         # Initial fixation
@@ -391,20 +457,30 @@ Press any key to begin."""
         self.check_pause()
         
         # Present all words and syllables in sequence
-        for word_idx, syllable_sounds in enumerate(word_sounds):
-            for syl_idx, syl_sound in enumerate(syllable_sounds):
-                if syl_sound:
+        for word_idx, syllable_filepaths in enumerate(word_filepaths):
+            for syl_idx, syl_filepath in enumerate(syllable_filepaths):
+                if syl_filepath:
                     # Show fixation during syllable
                     self.fixation.draw()
                     self.win.flip()
                     
-                    # Play syllable and wait for its duration
-                    syl_sound.play()
-                    core.wait(syl_sound.getDuration())
-                    syl_sound.stop()
+                    # Load sound just-in-time
+                    try:
+                        syl_sound = sound.Sound(syl_filepath, sampleRate=48000)
+                        
+                        # Play syllable and wait for its duration
+                        syl_sound.play()
+                        core.wait(syl_sound.getDuration())
+                        syl_sound.stop()
+                        
+                        # Immediately cleanup
+                        del syl_sound
+                        
+                    except Exception as e:
+                        print(f"Error playing {syl_filepath}: {e}")
                     
                     # Inter-syllable interval (except after last syllable of last word)
-                    if not (word_idx == len(word_sounds) - 1 and syl_idx == len(syllable_sounds) - 1):
+                    if not (word_idx == len(word_filepaths) - 1 and syl_idx == len(syllable_filepaths) - 1):
                         core.wait(self.params['inter_syllable_interval'])
                     
                     self.check_pause()
@@ -412,14 +488,23 @@ Press any key to begin."""
         # RETENTION PHASE
         print(f"Trial {trial_num}: Retention phase")
         
-        # Present cue syllable
+        # Present cue syllable - load just-in-time
         self.fixation.draw()
         self.win.flip()
         
-        self.send_trigger(self.params['trigger_cue_start'])
-        cue_sound.play()
-        core.wait(cue_sound.getDuration())
-        cue_sound.stop()
+        try:
+            cue_sound = sound.Sound(cue_filepath, sampleRate=48000)
+            
+            self.send_trigger(self.params['trigger_cue_start'])
+            cue_sound.play()
+            core.wait(cue_sound.getDuration())
+            cue_sound.stop()
+            
+            # Immediately cleanup
+            del cue_sound
+            
+        except Exception as e:
+            print(f"Error playing cue {cue_filepath}: {e}")
         
         # Retention delay
         core.wait(self.params['retention_delay'])
@@ -571,9 +656,9 @@ Press any key to begin."""
         correct_global = cue_info['word']
         correct_local = cue_info['syllable']
         
-        global_correct = (global_response == correct_global)
-        local_correct = (local_response == correct_local)
-        both_correct = global_correct and local_correct
+        global_correct = bool(global_response == correct_global)
+        local_correct = bool(local_response == correct_local)
+        both_correct = bool(global_correct and local_correct)
         
         # Show feedback for practice trials
         if is_practice:
@@ -617,35 +702,9 @@ Press any key to begin."""
         
         print(f"Trial {trial_num} complete: Global {global_response} (correct: {correct_global}), Local {local_response} (correct: {correct_local})")
         
-        # CLEANUP: Unload audio from memory to prevent memory leak
-        try:
-            # Unload all word syllable sounds
-            for syllable_sounds in word_sounds:
-                for syl_sound in syllable_sounds:
-                    if syl_sound:
-                        try:
-                            syl_sound.stop()
-                        except:
-                            pass
-                        del syl_sound
-            
-            # Unload cue sound
-            if cue_sound:
-                try:
-                    cue_sound.stop()
-                except:
-                    pass
-                del cue_sound
-            
-            # Clear references
-            word_sounds = None
-            cue_sound = None
-            
-            # Force garbage collection
-            gc.collect()
-            
-        except Exception as e:
-            print(f"Warning: Error during audio cleanup: {e}")
+        # Force garbage collection and give audio subsystem time to fully release resources
+        gc.collect()
+        core.wait(0.05)  # Small delay to let audio backend cleanup
         
         return result
     
@@ -661,24 +720,58 @@ Press any key to begin."""
             self.setup_window()
             self.setup_visual_components()
             
-            # Generate and save block order
-            block_order_file = self.generate_block_order()
+            # Check for existing block order and results
+            existing_block_order_file = self.find_existing_block_order()
+            last_completed_block_idx, existing_results = self.find_last_completed_block()
+            
+            # Load existing results if any
+            self.results = existing_results
+            
+            # Determine starting point
+            start_block_idx = last_completed_block_idx + 1
+            
+            if existing_block_order_file and start_block_idx > 0:
+                # Resume from existing block order
+                print(f"Found existing session. Resuming from block {start_block_idx + 1}")
+                if not self.load_block_order(existing_block_order_file):
+                    print("Failed to load existing block order. Generating new one.")
+                    self.generate_block_order()
+                    start_block_idx = 0
+            else:
+                # Generate new block order
+                print("Starting new session. Generating block order.")
+                self.generate_block_order()
+                start_block_idx = 0
             
             # Show instructions
-            self.show_instructions()
+            if start_block_idx == 0:
+                self.show_instructions()
+            else:
+                # Show resume message
+                resume_msg = f"""Resuming Experiment
+
+You have completed {start_block_idx} block(s).
+Starting from block {start_block_idx + 1} of {len(self.block_order)}.
+
+Press any key to continue."""
+                
+                self.instruction_text.text = resume_msg
+                self.instruction_text.draw()
+                self.win.flip()
+                event.waitKeys()
             
-            # Run all blocks
-            print("Starting experiment...")
-            self.results = []
-            trial_counter = 0
+            # Run blocks starting from the resume point
+            print(f"Starting experiment from block {start_block_idx + 1}...")
+            trial_counter = len([r for r in self.results if not r.get('is_practice', False)])
             
-            for block_idx, block_info in enumerate(self.block_order, 1):
+            for block_idx in range(start_block_idx, len(self.block_order)):
+                block_info = self.block_order[block_idx]
                 design_name = block_info['design']
                 block_num = block_info['block_num']
                 num_words = block_info['num_words']
                 syllables_per_word = block_info['syllables_per_word']
                 
-                # Get trials in this block
+                # Get trials in this block (limited to first 3 for testing)
                 trial_dirs = self.get_trials_in_block(design_name, block_num)
                 
                 if not trial_dirs:
@@ -686,7 +779,7 @@ Press any key to begin."""
                     continue
                 
                 # Show block start message
-                block_msg = f"Block {block_idx} of {len(self.block_order)}\n\n"
+                block_msg = f"Block {block_idx + 1} of {len(self.block_order)}\n\n"
                 block_msg += f"{design_name.replace('_', ' ').title()}\n\n"
                 block_msg += f"First trial is practice.\n\n"
                 block_msg += "Press any key to start."
@@ -718,11 +811,11 @@ Press any key to begin."""
                 
                 # Save results after each block
                 self.save_results()
-                print(f"Results saved after block {block_idx}")
+                print(f"Results saved after block {block_idx + 1}")
                 
                 # Block complete message
-                if block_idx < len(self.block_order):
-                    block_complete_msg = f"Block {block_idx} complete!\n\nTake a short break.\n\nPress any key to continue."
+                if block_idx < len(self.block_order) - 1:
+                    block_complete_msg = f"Block {block_idx + 1} complete!\n\nTake a short break.\n\nPress any key to continue."
                     self.instruction_text.text = block_complete_msg
                     self.instruction_text.draw()
                     self.win.flip()
